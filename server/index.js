@@ -3,76 +3,111 @@ const app = express()
 const cors = require('cors')
 const port = 4000
 const tf = require('@tensorflow/tfjs')
+const use = require('@tensorflow-models/universal-sentence-encoder')
 
-function runTF() {
-    // Create a new model
-    const model = tf.sequential();
+let modelBuilt = false;
 
-    // Create a new (middle) layer with 4 nodes,
-    // accepting inputs from 2 input nodes
-    const hidden = tf.layers.dense({
-        units: 4,
-        inputShape: [2],
-        activation: 'sigmoid'
-    })
-    // Add layer to model
-    model.add(hidden)
+let t_inputs = [
+    'Trump fires Comey',
+    'Donald Trump fires Comey',
+    'Trump fires James Comey',
+    'Donald Trump fires James Comey',
+    'Comey fires Trump',
+    'James Comey fires Trump',
+    'Comey fires Donald Trump',
+    'James Comey fires Donald Trump',
+]
 
-    // Create a new (output) layer with 3 nodes,
-    // accepting inputs from 4 inout nodes (implied)
-    const output = tf.layers.dense({
-        units: 1,
-        activation: 'sigmoid'
-    })
-    // Add layer to model
-    model.add(output)
+let t_outputs = [
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0
+]
 
-    // Define how strongly model reacts to input data?
-    const sgdOpt = tf.train.sgd(0.1);
-    // Compile model
-    model.compile({
-        optimizer: sgdOpt,
-        loss: tf.losses.meanSquaredError
-    })
+async function tokenizeInputString() {
+    for (let i = 0; i < t_inputs.length; i++) {
+        const text = t_inputs[i]
+        const tokenizer = await use.loadTokenizer()
+        const tokenizedArray = (await tokenizer.encode(text)).map(num => [num])
 
-    const t_inputs = tf.tensor2d([
-        [0, 0],
-        [0.5, 0.5],
-        [1, 1]
-    ])
+        t_inputs[i] = tokenizedArray;
+        let outputs = [];
+        for (let j = 0; j < tokenizedArray.length; j++)
+            outputs.push([t_outputs[i]])
+        t_outputs[i] = outputs;
+    }
 
-    const t_outputs = tf.tensor2d([
-        [1],
-        [0.5],
-        [0]
-    ])
+}
 
+
+const model = tf.sequential();
+
+const hidden = tf.layers.dense({
+    units: 4,
+    inputShape: [1],
+    activation: 'sigmoid'
+})
+model.add(hidden)
+
+const output = tf.layers.dense({
+    units: 1,
+    activation: 'sigmoid'
+})
+model.add(output)
+
+const sgdOpt = tf.train.sgd(0.25);
+model.compile({
+    optimizer: sgdOpt,
+    loss: tf.losses.meanSquaredError
+})
+
+async function buildModel() {
     async function trainModel() {
-        for (let i = 0; i < 100; i++) {
-            const response = await model.fit(t_inputs, t_outputs);
-            console.log(response.history.loss);
+        for (let i = 0; i < t_inputs.length; i++) {
+            const inputsArray = t_inputs[i];
+            const outputsArray = t_outputs[i];
+            t_inputs[i] = tf.tensor2d(inputsArray);
+            t_outputs[i] = tf.tensor2d(outputsArray);
+            console.log('t_input: ', t_inputs[i]);
+            console.log('t_output: ', t_outputs[i]);
+
+            const response = await model.fit(t_inputs[i], t_outputs[i]);
         }
     }
 
-    trainModel().then(() => {
-
-    })
-
+    await trainModel();
 }
 
-app.get('/', (req, res) => {
-    runTF()
-    return res.send({ text: 'Hello World!' })
+const input = 'Trump fires Comey'
+
+async function useModel() {
+    const tokenizer = await use.loadTokenizer()
+    const tokenizedArray = (await tokenizer.encode(input)).map(num => [num])
+    console.log('Input: ', tokenizedArray);
+
+    let output = await model.predict(tokenizedArray);
+    return Array.from(output.dataSync());
+}
+
+app.get('/', async (req, res) => {
+    // if (!modelBuilt) {
+    //     await buildModel()
+    //     modelBuilt = true;
+    // }
+    // const data = await useModel()
+
+    await tokenizeInputString();
+
+    await buildModel()
+    // const data = await useModel()
+
+
+    return res.send({ data: 'test' })
 })
 app.use(cors())
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
-
-
-
-
-function university() {
-    const expectations = 99;
-    return Math.floor(
-        expectations / 100
-    );
-}

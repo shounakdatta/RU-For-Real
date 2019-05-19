@@ -9,6 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@tensorflow-models/toxicity": "^1.0.3",
+    "@tensorflow-models/universal-sentence-encoder": "^1.0.3",
     "@tensorflow/tfjs": "^1.1.2",
     "cors": "^2.8.5",
     "express": "^4.17.0"
