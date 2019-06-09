@@ -8,18 +8,31 @@ async function onClick() {
     }, error => {
       return error
     })
-  console.log(val);
-
+  console.log(val.data);
 }
 
-function App() {
-  return (
-    <div className="App">
-      <button onClick={onClick}>
-        Test
-      </button>
-    </div>
-  );
+class App extends React.Component {
+  constructor() {
+    super();
+    this.state = {
+      text: ''
+    }
+  }
+
+  // updateText()
+
+  render() {
+    const { text } = this.state;
+
+    return (
+      <div className="App">
+        {/* <input>{text}</input> */}
+        <button onClick={onClick}>
+          Test
+        </button>
+      </div>
+    );
+  }
 }
 
 export default App;
